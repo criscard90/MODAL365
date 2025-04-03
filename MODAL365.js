@@ -23,22 +23,8 @@ class Modal365 {
             label.style.display = 'block';
             label.style.marginBottom = '5px';
 
-            let inputElement;
-            if (input.type === 'select') {
-                // Create a dropdown (optionset)
-                inputElement = document.createElement('select');
-                input.options.forEach(option => {
-                    let optionElement = document.createElement('option');
-                    optionElement.value = option.value;
-                    optionElement.textContent = option.label;
-                    inputElement.appendChild(optionElement);
-                });
-            } else {
-                // Default to a text input
-                inputElement = document.createElement('input');
-                inputElement.type = input.type || 'text'; // Default to 'text' if no type is provided
-            }
-
+            let inputElement = document.createElement('input');
+            inputElement.type = 'text';
             inputElement.style.display = 'block';
             inputElement.style.marginBottom = '20px';
 
@@ -103,6 +89,8 @@ class Modal365 {
             }
             this.mainThread(inputData);
         };
+
+        MODAL365.Utility.loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
     }
 
     async mainThread(inputData) {
@@ -119,7 +107,6 @@ class Modal365 {
     }
 }
 
-// Define the Utility class as a static property of Modal365
 Modal365.Utility = class {
     static async loadScript(url) {
         let response = await fetch(url);
@@ -128,6 +115,7 @@ Modal365.Utility = class {
         scriptElement.textContent = script;
         document.head.appendChild(scriptElement);
     }
+
     static async await(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
@@ -140,9 +128,89 @@ Modal365.Utility = class {
         logContainer.appendChild(logEntry);
         logContainer.scrollTop = logContainer.scrollHeight;
     }
+
+    static async backupRecord(entityName, recordId) {
+        try {
+            // Recupera l'ID del record e il nome dell'entità dalla pagina corrente
+            
+            if (!entityName || !recordId) {
+                alert("Impossibile ottenere ID o entità dalla pagina corrente.");
+                return;
+            }
+            
+            // Ottieni il client URL (token di base)
+            const clientUrl = Xrm.Utility.getGlobalContext().getClientUrl();
+            
+            // 1. Ottieni i dettagli del record principale
+            const mainRecordUrl = `${clientUrl}/api/data/v9.2/${entityName}s(${recordId})`;
+            const mainRecord = await fetch(mainRecordUrl, {
+                method: "GET",
+                headers: {
+                    "Accept": "application/json",
+                    "OData-MaxVersion": "4.0",
+                    "OData-Version": "4.0"
+                }
+            }).then(res => res.json());
+            
+            // 2. Ottieni le relazioni 1:N dell'entità
+            const metadataUrl = `${clientUrl}/api/data/v9.2/EntityDefinitions(LogicalName='${entityName}')?$expand=OneToManyRelationships`;
+            const metadata = await fetch(metadataUrl, {
+                method: "GET",
+                headers: {
+                    "Accept": "application/json",
+                    "OData-MaxVersion": "4.0",
+                    "OData-Version": "4.0"
+                }
+            }).then(res => res.json());
+            
+            const relationships = metadata.OneToManyRelationships;
+            if (!relationships || relationships.length === 0) {
+                alert("Nessuna relazione 1:N trovata per questa entità.");
+                return;
+            }
+            
+            // 3. Prepara un workbook Excel
+            const workbook = XLSX.utils.book_new();
+            
+            // Aggiungi i dati del record principale come primo foglio
+            const mainSheet = XLSX.utils.json_to_sheet([mainRecord]);
+            XLSX.utils.book_append_sheet(workbook, mainSheet, "Main Record");
+            
+            // 4. Itera su tutte le relazioni 1:N e recupera i dati
+            for (const relationship of relationships) {
+                const navigationProperty = relationship.ReferencedEntityNavigationPropertyName;
+                const relatedEntity = relationship.ReferencingEntity;
+                
+                console.log(navigationProperty);
+                
+                if (navigationProperty) {
+                    const relatedRecordsUrl = `${clientUrl}/api/data/v9.2/${entityName}s(${recordId})/${navigationProperty}`;
+                    const relatedRecords = await fetch(relatedRecordsUrl, {
+                        method: "GET",
+                        headers: {
+                            "Accept": "application/json",
+                            "OData-MaxVersion": "4.0",
+                            "OData-Version": "4.0"
+                        }
+                    }).then(res => res.json());
+                    
+                    // Se ci sono record correlati, aggiungili come un foglio
+                    if (relatedRecords && relatedRecords.value && relatedRecords.value.length > 0) {
+                        const relatedSheet = XLSX.utils.json_to_sheet(relatedRecords.value);
+                        XLSX.utils.book_append_sheet(workbook, relatedSheet, relatedEntity.substring(0, 30));
+                    }
+                }
+            }
+            
+            // 5. Scarica il file Excel
+            XLSX.writeFile(workbook, `${entityName}_${recordId}_backup.xlsx`);
+        } catch (error) {
+            console.error("Errore durante il backup:", error);
+            alert("Si è verificato un errore. Controlla la console per maggiori dettagli.");
+        }
+    }
 };
 
-// Define the CRUD class as a static property of Modal365
 Modal365.CRUD = class {
     static async executeRetrieve(entity, options) {
         const url = Xrm.Utility.getGlobalContext().getClientUrl() + "/api/data/v9.2/" + entity + options;
