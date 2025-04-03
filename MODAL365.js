@@ -323,5 +323,3 @@ Modal365.CRUD = class {
         });
     }
 };
-
-export default Modal365;
