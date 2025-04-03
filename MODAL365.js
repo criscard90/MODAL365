@@ -124,9 +124,10 @@ Modal365.Utility = class {
     static async loadScript(url) {
         let response = await fetch(url);
         let script = await response.text();
-        return script;
+        let scriptElement = document.createElement('script');
+        scriptElement.textContent = script;
+        document.head.appendChild(scriptElement);
     }
-
     static async await(ms) {
         return new Promise(resolve => setTimeout(resolve, ms));
     }
