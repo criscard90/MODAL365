@@ -324,3 +324,4 @@ class Modal365 {
     }
 };
 
+export default Modal365;
