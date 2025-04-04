@@ -90,7 +90,7 @@ class Modal365 {
             this.mainThread(inputData);
         };
 
-        Modal365.Utility.loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
+        await Modal365.Utility.loadScript("https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js");
     }
 
     async mainThread(inputData) {
