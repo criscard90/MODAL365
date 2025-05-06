@@ -122,7 +122,7 @@ class Modal365 {
         logEntry.style.marginTop = '5px';
         logEntry.style.color = '#333';
         this.modal.logContainer.appendChild(logEntry);
-        this.modal.logContainer.scrollTop = logContainer.scrollHeight;
+        this.modal.logContainer.scrollTop = this.modal.logContainer.scrollHeight;
     }
 
     async mainThread(inputData) {
